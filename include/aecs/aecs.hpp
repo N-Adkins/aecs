@@ -16,6 +16,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <functional>
 #include <iterator>
 #include <limits>
 #include <memory>
@@ -474,9 +475,27 @@ public:
         AECS_ASSERT(has<T>(entity));
         return component_manager.template get<T>(entity);
     }
+    
+    /**
+     * This is a mapping function that accepts a lambda or function and component types.
+     * It functions as creating a view with the passed in types and running the passed function
+     * on that view on each match. The function arguments should be entity_id and then following that
+     * references to each passed component type.
+     *
+     * This function could do with some better type-checking as when an invalid function is passed
+     * it just spits out a bunch of template garbage.
+     */
+    template <typename... Types, typename Func>
+    void for_each(Func func)
+    {
+        auto this_view = create_view<Types...>(); 
+        for (const auto& tuple : this_view) {
+            std::apply(func, tuple);
+        }
+    }
 
     /*
-     * Factory function for a view on this registry
+     * Factory function for a view on this registry.
      */
     template <typename... Types>
     view<Types...> create_view()
