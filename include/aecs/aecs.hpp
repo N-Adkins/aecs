@@ -16,9 +16,11 @@
 
 #include <cassert>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <queue>
+#include <tuple>
 #include <typeindex>
 #include <unordered_map>
 #include <vector>
@@ -164,7 +166,6 @@ template <typename entity_id>
 class component_manager
 {
 public:
-
     /**
      * Adds component to passed entity and returns a reference to it.
      */
@@ -203,12 +204,69 @@ private:
     std::unordered_map<std::type_index, std::unique_ptr<i_component_allocator<entity_id>>> allocators;
 };
 
+/**
+ * Internal entity representation, contains a mask to easily iterate over them
+ */
 template <typename entity_id>
 struct entity
 {
     entity_id id;
     std::uint64_t mask = 0;
 };
+
+/**
+ * Tuple type concatenation
+ */
+template <typename... Tuples>
+struct tuple_cat_s;
+
+/**
+ * Recursive case, combine both tuple types and call again with new one
+ * and other types
+ */
+template <typename... Ts, typename... Us, typename... Tuples>
+struct tuple_cat_s<std::tuple<Ts...>, std::tuple<Us...>, Tuples...>
+    : tuple_cat_s<std::tuple<Ts..., Us...>, Tuples...> {};
+
+/**
+ * Base case, simple tuple without any nested
+ */
+template <typename... Ts>
+struct tuple_cat_s<std::tuple<Ts...>> 
+{
+    using type = std::tuple<Ts...>;
+};
+
+/**
+ * Alias for tuple_cat_s::type for ease of use
+ */
+template <typename... Tuples>
+using tuple_cat_t = typename tuple_cat_s<Tuples...>::type;
+
+/**
+ * Base case for generating a reference tuple
+ */
+template <typename... Types>
+struct make_view_tuple 
+{
+    using type = std::tuple<>;
+};
+
+/**
+ * Recursive case
+ */
+template <typename T, typename... Types>
+struct make_view_tuple<T, Types...> 
+{
+    using type = tuple_cat_t<std::tuple<T&>, typename make_view_tuple<Types...>::type>;
+};
+
+/**
+ * Turns the passed parameter pack of types into a tuple type with the same types
+ * but as references
+ */
+template <typename... Types>
+using view_tuple = typename make_view_tuple<Types...>::type;
 
 } // namespace aecs::internal
 
@@ -218,13 +276,116 @@ namespace aecs
 
 /**
  * Monolothic ECS registry, handles creating and destroying entities
- * as well as manipulating them with components.
+ * as well as manipulating them with components. The template parameter
+ * specifies the underlying type for an entity id. Half of the bits will
+ * be used as an index and the other half will be used as versioning.
+ *
+ * Ex. if you have aecs::registry<std::uint32_t> then the index is 16 bits
+ * and the version is 16 bits. This means you can have a maximum of 2^16 entities.
  */
 template <typename entity_id = internal::DEFAULT_ENTITY_ID_TYPE>
 class registry
 {
-public:
+private:
+    internal::component_manager<entity_id> component_manager;
+    std::vector<internal::entity<entity_id>> entities;
+    std::queue<entity_id> deleted_ids;
+    entity_id current_index = 0;
+    
+    /**
+     * Iterator for a registry that takes in types as a template parameter and will
+     * return all components for each entity that possesses all parameter types
+     * as components. Should only be created via factory function.
+     */
+    template <typename... Types>
+    class view
+    {
+    public:
+        view(registry& reg)
+            : reg(reg)
+        {
+            (add_type_to_mask<Types>(),...);
+            find_next_valid();
+        }
 
+        using tuple = internal::view_tuple<Types...>;
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = tuple;
+
+        value_type operator*() const 
+        {
+            value_type tuple = { reg.get<Types>(reg.entities[current_index].id)... };
+            return tuple;
+        };
+
+        value_type operator->() const 
+        { 
+            value_type tuple = { reg.get<Types>(reg.entities[current_index].id)... };
+            return tuple;
+        }
+
+        view<Types...>& operator++()
+        {
+            find_next_valid();
+            return *this;
+        }
+
+        view<Types...>& operator+=(int i)
+        {
+            for (int j = 0; j < i; j++) {
+                find_next_valid();
+            }
+            return *this;
+        }
+
+        friend bool operator==(const view& a, const view& b) 
+        { 
+            return a.current_index == b.current_index; 
+        }
+
+        friend bool operator!=(const view& a, const view& b) 
+        { 
+            return a.current_index != b.current_index; 
+        }
+
+        view<Types...> begin() 
+        { 
+            return view<Types...>(reg);
+        }
+
+        view<Types...> end()
+        {
+            auto v = view<Types...>(reg);
+            v.current_index = reg.current_index;
+            return v;
+        }
+
+    private:
+        registry<entity_id>& reg;
+        std::size_t current_index = -1;
+        std::size_t first_valid;
+        std::uint64_t mask = 0;
+        
+        template <typename T>
+        void add_type_to_mask()
+        {
+            const auto component_id = internal::get_component_id<T>();
+            mask |= (1 << component_id);
+        }
+
+        void find_next_valid()
+        {
+            current_index++;
+            while (current_index < reg.current_index) {
+                if ((reg.entities[current_index].mask & mask) == mask) {
+                    return;
+                }
+                current_index++;
+            }
+        }
+    };
+
+public:
     /**
      * Constructs new entity_id and handles populating deleted entities,
      * as well as creating brand new ones.
@@ -314,11 +475,14 @@ public:
         return component_manager.template get<T>(entity);
     }
 
-private:
-    internal::component_manager<entity_id> component_manager;
-    std::vector<internal::entity<entity_id>> entities;
-    std::queue<entity_id> deleted_ids;
-    entity_id current_index = 0;
+    /*
+     * Factory function for a view on this registry
+     */
+    template <typename... Types>
+    view<Types...> create_view()
+    {
+        return view<Types...>(*this);
+    }
 };
 
 } // namespace aecs

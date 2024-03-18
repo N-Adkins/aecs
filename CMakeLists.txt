@@ -11,5 +11,5 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(aecs INTERFACE)
 
 target_include_directories(aecs INTERFACE include)
-target_compile_features(aecs INTERFACE cxx_std_11)
+target_compile_features(aecs INTERFACE cxx_std_17)
 set_target_properties(aecs PROPERTIES CXX_EXTENSIONS OFF)
