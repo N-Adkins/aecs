@@ -265,8 +265,8 @@ struct make_view_tuple<T, Types...>
  * Turns the passed parameter pack of types into a tuple type with the same types
  * but as references
  */
-template <typename... Types>
-using view_tuple = typename make_view_tuple<Types...>::type;
+template <typename entity_id, typename... Types>
+using view_tuple = tuple_cat_t<std::tuple<entity_id>, typename make_view_tuple<Types...>::type>;
 
 } // namespace aecs::internal
 
@@ -308,19 +308,19 @@ private:
             find_next_valid();
         }
 
-        using tuple = internal::view_tuple<Types...>;
+        using tuple = internal::view_tuple<entity_id, Types...>;
         using iterator_category = std::forward_iterator_tag;
         using value_type = tuple;
 
         value_type operator*() const 
         {
-            value_type tuple = { reg.get<Types>(reg.entities[current_index].id)... };
+            value_type tuple = { reg.entities[current_index].id, reg.get<Types>(reg.entities[current_index].id)... };
             return tuple;
         };
 
         value_type operator->() const 
         { 
-            value_type tuple = { reg.get<Types>(reg.entities[current_index].id)... };
+            value_type tuple = { reg.entities[current_index].id, reg.get<Types>(reg.entities[current_index].id)... };
             return tuple;
         }
 
