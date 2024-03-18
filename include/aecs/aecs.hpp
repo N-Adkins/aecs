@@ -25,10 +25,6 @@
 #include <unordered_map>
 #include <vector>
 
-// Leaving this on for now since I need the testing and this isn't even
-// useable yet.
-#define AECS_USE_ASSERTIONS
-
 // User can define AECS_USE_ASSERTIONS to enable debugging assertions.
 // Off by default.
 #ifdef AECS_USE_ASSERTIONS
