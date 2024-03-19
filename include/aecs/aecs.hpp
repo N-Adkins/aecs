@@ -2,7 +2,6 @@
     AECS - v0.1
     No warranty implied, use at your own risk.
 
-
     Header-only Entity Component System, entirely self-contained with
     no boilerplate or macros needed to function.
 
