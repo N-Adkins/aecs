@@ -20,7 +20,7 @@ struct Foo
 struct Bar
 {
     int bar;
-}
+};
 
 int main()
 {
