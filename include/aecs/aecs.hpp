@@ -382,6 +382,8 @@ private:
     };
 
 public:
+    using entity_id_type = entity_id;
+
     /**
      * Constructs new entity_id and handles populating deleted entities,
      * as well as creating brand new ones.
