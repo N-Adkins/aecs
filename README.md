@@ -24,6 +24,8 @@ struct Bar
 
 int main()
 {
+    // You can specify the underlying type for entity ids with the template argument on aecs::registry,
+    // ex. aecs::registry<std::uint64_t> registry;
     aecs::registry registry;
 
     const auto entity_1 = registry.new_entity();
