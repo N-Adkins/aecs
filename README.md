@@ -36,7 +36,7 @@ int main()
     registry.assign<Foo>(entity_2, { .foo = 30 });
 
     // This block prints "10 30"
-    auto foo_view = registry.create_view<Foo>();
+    auto foo_view = registry.new_view<Foo>();
     for (const auto& [entity, foo] : foo_view) {
         std::cout << foo.foo << " ";
     }

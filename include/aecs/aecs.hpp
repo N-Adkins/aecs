@@ -484,7 +484,7 @@ public:
     template <typename... Types, typename Func>
     void for_each(Func func)
     {
-        auto this_view = create_view<Types...>(); 
+        auto this_view = new_view<Types...>(); 
         for (const auto& tuple : this_view) {
             std::apply(func, tuple);
         }
@@ -494,7 +494,7 @@ public:
      * Factory function for a view on this registry.
      */
     template <typename... Types>
-    view<Types...> create_view()
+    view<Types...> new_view()
     {
         return view<Types...>(*this);
     }
