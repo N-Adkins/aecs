@@ -179,7 +179,7 @@ public:
 
         AECS_ASSERT(allocators.find(type_index) != allocators.end());
 
-        const auto allocator = dynamic_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
+        const auto allocator = static_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
         return allocator->insert(entity, component);
     }
     
@@ -191,7 +191,7 @@ public:
     {
         const auto type_index = std::type_index(typeid(T));
         AECS_ASSERT(allocators.find(type_index) != allocators.end());
-        const auto allocator = dynamic_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
+        const auto allocator = static_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
         return allocator->get(entity);
     }
 
