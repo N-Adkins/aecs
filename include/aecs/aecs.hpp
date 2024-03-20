@@ -123,10 +123,6 @@ std::size_t get_component_id()
 template <typename entity_id>
 struct i_component_allocator
 {
-    i_component_allocator(const i_component_allocator&) = default;
-    i_component_allocator(i_component_allocator&&) = default;
-    i_component_allocator& operator=(const i_component_allocator&) = default;
-    i_component_allocator& operator=(i_component_allocator&&) = default;
     virtual ~i_component_allocator() = default;
     virtual void entity_destroyed(entity_id entity) = 0;
 };
