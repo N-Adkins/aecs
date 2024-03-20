@@ -27,7 +27,7 @@
 // User can define AECS_USE_ASSERTIONS to enable debugging assertions.
 // Off by default.
 #ifdef AECS_USE_ASSERTIONS
-    #define AECS_ASSERT(condition) assert((condition))
+    #define AECS_ASSERT(condition) assert(condition)
 #else
     #define AECS_ASSERT(...) ((void)0);
 #endif
