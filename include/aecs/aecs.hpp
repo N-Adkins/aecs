@@ -124,6 +124,7 @@ template <typename entity_id>
 struct i_component_allocator
 {
     virtual ~i_component_allocator() = default;
+    virtual void entity_destroyed(entity_id entity) = 0;
 };
 
 /**
@@ -135,7 +136,7 @@ struct component_allocator : public i_component_allocator<entity_id>
 {
     std::vector<T> arr;
     
-    T& insert(entity_id entity, T component)
+    T& insert(entity_id entity, const T&& component)
     {
         const auto index = get_entity_index(entity);
         if (index >= arr.size()) {
@@ -151,6 +152,18 @@ struct component_allocator : public i_component_allocator<entity_id>
         AECS_ASSERT(arr.size() >= index);
         return arr[index];
     }
+
+    void destroy(entity_id entity)
+    {
+        const auto index = get_entity_index(entity);
+        AECS_ASSERT(arr.size() >= index);
+        arr[index] = T{};
+    }
+
+    void entity_destroyed(entity_id entity) override
+    {
+        destroy(entity); 
+    }
 };
 
 /**
@@ -165,7 +178,7 @@ public:
      * Adds component to passed entity and returns a reference to it.
      */
     template <typename T>
-    T& insert(entity_id entity, T component)
+    T& insert(entity_id entity, const T&& component)
     {
         const auto type_index = std::type_index(typeid(T));
         
@@ -180,9 +193,9 @@ public:
         AECS_ASSERT(allocators.find(type_index) != allocators.end());
 
         const auto allocator = static_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
-        return allocator->insert(entity, component);
+        return allocator->insert(entity, std::move(component));
     }
-    
+   
     /**
      * Returns component associated with passed entity as reference.
      */
@@ -193,6 +206,28 @@ public:
         AECS_ASSERT(allocators.find(type_index) != allocators.end());
         const auto allocator = static_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
         return allocator->get(entity);
+    }
+    
+    /**
+     * Destructs the specified component type that is associated with the passed entity.
+     */
+    template <typename T>
+    void destroy(entity_id entity)
+    {
+        const auto type_index = std::type_index(typeid(T));
+        AECS_ASSERT(allocators.find(type_index) != allocators.end());
+        const auto allocator = static_cast<component_allocator<entity_id, T>*>(allocators[type_index].get());
+        return allocator->destroy(entity);
+    }
+    
+    /**
+     * Destructs all components associated with specified entity
+     */
+    void entity_destroyed(entity_id entity)
+    {
+        for (auto& [_, allocator] : allocators) {
+            allocator->entity_destroyed(entity);
+        }
     }
 
 private:
@@ -418,8 +453,9 @@ public:
     {
         const auto index = internal::get_entity_index(entity);
         AECS_ASSERT(entities.size() >= index);
-        entities[index] = internal::create_invalid_entity<entity_id>();
+        entities[index] = { .id = internal::create_invalid_entity<entity_id>() };
         deleted_ids.push(entity);
+        component_manager.entity_destroyed(entity);
     }
     
     /**
@@ -440,13 +476,13 @@ public:
      * registry-owned version of it.
      */
     template <typename T>
-    T& assign(entity_id entity, T component)
+    T& assign(entity_id entity, const T&& component)
     {
         AECS_ASSERT(!has<T>(entity));
         const auto component_id = internal::get_component_id<T>();
         auto& internal_entity = entities[internal::get_entity_index(entity)];
         internal_entity.mask |= (1 << component_id);
-        return component_manager.insert(entity, component);
+        return component_manager.insert(entity, std::move(component));
     }
     
     /**
@@ -459,6 +495,7 @@ public:
         const auto component_id = internal::get_component_id<T>();
         auto& internal_entity = entities[internal::get_entity_index(entity)];
         internal_entity.mask &= ~(1 << component_id);
+        component_manager.destroy(entity);
     }
     
     /**

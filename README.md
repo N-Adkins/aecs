@@ -59,7 +59,7 @@ int main()
 ```
 
 # Preconditions
-1. Components are assumed to be POD (plain old data) without a constructor or destructor.
+1. Components must provide a default constructor.
 2. Functions will not be called with types that are not valid component types for that registry, as it will eat up a bit in every entity's bitmask (I intend to do something about this in time).
 3. The registry will not be directly mutated during iteration with a view or for_each.
 4. Functions will not be called using an entity that has been invalidated.
